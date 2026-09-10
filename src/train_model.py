@@ -1,93 +1,135 @@
-import os
+from pathlib import Path
+
 import joblib
 import pandas as pd
 
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
 
-# Import preprocess function
-from preprocessing import preprocess
+from preprocessing import preprocess_reviews
 
-# -------------------------
-# Load Dataset
-# -------------------------
 
-dataset_path = "../datasets/IMDB_dataset.csv"
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-df = pd.read_csv(dataset_path)
+DATASET_PATH = BASE_DIR / "datasets" / "IMDB_Dataset.csv"
+MODEL_DIR = BASE_DIR / "models"
 
-print("Dataset Loaded Successfully!")
-print(df.head())
+MODEL_DIR.mkdir(exist_ok=True)
 
-# -------------------------
-# Preprocess Reviews
-# -------------------------
 
-print("\nPreprocessing reviews...")
+def main():
 
-df["review"] = df["review"].apply(preprocess)
+    print("Loading dataset...")
 
-print("Preprocessing Completed!")
+    df = pd.read_csv(DATASET_PATH)
 
-# -------------------------
-# Convert Labels
-# -------------------------
+    df = df.dropna(subset=["review", "sentiment"])
 
-df["sentiment"] = df["sentiment"].map({
-    "pos": 1,
-    "neg": 0
-})
+    print(f"Dataset size: {len(df)}")
 
-print(df["sentiment"].value_counts())
+    
+    # Convert labels
+    
 
-print(df["sentiment"].isnull().sum())
+    df["label"] = df["sentiment"].map({
+        "pos": 1,
+        "neg": 0
+    })
 
-# -------------------------
-# TF-IDF
-# -------------------------
+    if df["label"].isnull().any():
+        raise ValueError(
+            "Unexpected sentiment labels found in dataset."
+        )
 
-print("\nCreating TF-IDF Features...")
+    
+    # Preprocessing
 
-vectorizer = TfidfVectorizer(max_features=5000)
 
-X = vectorizer.fit_transform(df["review"])
+    print("Preprocessing reviews...")
 
-y = df["sentiment"]
+    df["cleaned_review"] = preprocess_reviews(df["review"])
 
-print("TF-IDF Completed!")
+    X = df["cleaned_review"]
+    y = df["label"]
 
-# -------------------------
-# Train-Test Split
-# -------------------------
+    
+    # Train/Test split
+    
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.20,
-    random_state=42
-)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.20,
+        random_state=42,
+        stratify=y
+    )
 
-# -------------------------
-# Train Model
-# -------------------------
+    print(f"Training samples: {len(X_train)}")
+    print(f"Testing samples: {len(X_test)}")
 
-print("\nTraining Model...")
+    
+    # TF-IDF
+    
 
-model = LogisticRegression(max_iter=1000)
+    print("Creating TF-IDF features...")
 
-model.fit(X_train, y_train)
+    vectorizer = TfidfVectorizer(
+        max_features=10000,
+        ngram_range=(1, 2),
+        min_df=2,
+        max_df=0.95,
+        sublinear_tf=True
+    )
 
-print("Model Training Completed!")
+    X_train_tfidf = vectorizer.fit_transform(X_train)
 
-# -------------------------
-# Save Model
-# -------------------------
+    X_test_tfidf = vectorizer.transform(X_test)
 
-os.makedirs("../models", exist_ok=True)
+    print(
+        f"TF-IDF training matrix shape: "
+        f"{X_train_tfidf.shape}"
+    )
 
-joblib.dump(model, "../models/sentiment_model.pkl")
+    
+    # Logistic Regression
+    
 
-joblib.dump(vectorizer, "../models/tfidf_vectorizer.pkl")
+    print("Training Logistic Regression...")
 
-print("\nModel Saved Successfully!")
+    model = LogisticRegression(
+        max_iter=1000,
+        random_state=42
+    )
+
+    model.fit(X_train_tfidf, y_train)
+
+    
+    # Save model
+    
+
+    joblib.dump(
+        model,
+        MODEL_DIR / "sentiment_model.pkl"
+    )
+
+    joblib.dump(
+        vectorizer,
+        MODEL_DIR / "tfidf_vectorizer.pkl"
+    )
+
+    print("\nModel saved successfully.")
+
+    print(
+        f"Model: {MODEL_DIR / 'sentiment_model.pkl'}"
+    )
+
+    print(
+        f"Vectorizer: {MODEL_DIR / 'tfidf_vectorizer.pkl'}"
+    )
+
+    print("\nTraining completed.")
+
+
+if __name__ == "__main__":
+    main()

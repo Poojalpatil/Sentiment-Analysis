@@ -1,42 +1,88 @@
+from pathlib import Path
+
 import joblib
 
-# Import preprocess function
-from preprocessing import preprocess
+from preprocessing import clean_text
 
-# -------------------------
-# Load Model
-# -------------------------
 
-print("Loading Model...")
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-model = joblib.load("../models/sentiment_model.pkl")
-vectorizer = joblib.load("../models/tfidf_vectorizer.pkl")
+MODEL_PATH = BASE_DIR / "models" / "sentiment_model.pkl"
+VECTORIZER_PATH = BASE_DIR / "models" / "tfidf_vectorizer.pkl"
 
-print("Model Loaded Successfully!\n")
 
-# -------------------------
-# Prediction Loop
-# -------------------------
+def predict_sentiment(review: str):
 
-while True:
+    model = joblib.load(MODEL_PATH)
+    vectorizer = joblib.load(VECTORIZER_PATH)
 
-    review = input("Enter Movie Review (or type 'exit' to quit):\n")
+    cleaned_review = clean_text(review)
 
-    if review.lower() == "exit":
-        print("Program Closed.")
-        break
+    review_vector = vectorizer.transform(
+        [cleaned_review]
+    )
 
-    # Preprocess review
-    processed_review = preprocess(review)
+    prediction = model.predict(
+        review_vector
+    )[0]
 
-    # Convert text to TF-IDF
-    review_vector = vectorizer.transform([processed_review])
+    # Logistic Regression has predict_proba.
+    if hasattr(model, "predict_proba"):
 
-    # Predict
-    prediction = model.predict(review_vector)
+        probabilities = model.predict_proba(
+            review_vector
+        )[0]
 
-    # Display result
-    if prediction[0] == 1:
-        print("\nPrediction : Positive 😊\n")
+        confidence = max(probabilities) * 100
+
     else:
-        print("\nPrediction : Negative 😞\n")
+
+        confidence = None
+
+    if prediction == 1:
+        sentiment = "Positive"
+    else:
+        sentiment = "Negative"
+
+    return sentiment, confidence
+
+
+def main():
+
+    print("=" * 50)
+    print("IMDb SENTIMENT ANALYZER")
+    print("=" * 50)
+
+    print("\nType 'exit' to close the program.")
+
+    while True:
+
+        review = input(
+            "\nEnter movie review: "
+        ).strip()
+
+        if review.lower() == "exit":
+            print("\nProgram closed.")
+            break
+
+        if not review:
+            print("Please enter a review.")
+            continue
+
+        sentiment, confidence = predict_sentiment(
+            review
+        )
+
+        print("\nPrediction")
+        print("-" * 30)
+        print(f"Sentiment: {sentiment}")
+
+        if confidence is not None:
+            print(
+                f"Model Probability: "
+                f"{confidence:.2f}%"
+            )
+
+
+if __name__ == "__main__":
+    main()

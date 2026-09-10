@@ -1,119 +1,86 @@
-# Import required libraries
 import re
 import string
-import nltk
 
-# Download NLTK data (only first time)
-nltk.download('punkt')
-nltk.download('punkt_tab')
-nltk.download('stopwords')
-nltk.download('wordnet')
-
-from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-
-# Create stopword set
-stop_words = set(stopwords.words('english'))
-
-# Create lemmatizer object
-lemmatizer = WordNetLemmatizer()
+from nltk.tokenize import word_tokenize
 
 
-# -----------------------------
-# Step 1: Clean Text
-# -----------------------------
-def clean_text(text):
+STOP_WORDS = set(stopwords.words("english"))
 
-    # Convert text to lowercase
+
+# for sentiment analysis.
+NEGATION_WORDS = {"not", "no", "nor", "never"}
+
+STOP_WORDS = STOP_WORDS - NEGATION_WORDS
+
+LEMMATIZER = WordNetLemmatizer()
+
+
+def clean_text(text: str) -> str:
+    """
+    Clean and normalize a movie review.
+    """
+
+    if not isinstance(text, str):
+        return ""
+
+    # Convert to lowercase
     text = text.lower()
 
+    # Remove HTML tags
+    text = re.sub(r"<.*?>", " ", text)
+
     # Remove URLs
-    text = re.sub(r'http\S+', '', text)
+    text = re.sub(r"https?://\S+|www\.\S+", " ", text)
+
+    # Handle common contractions
+    contractions = {
+        "can't": "can not",
+        "won't": "will not",
+        "don't": "do not",
+        "doesn't": "does not",
+        "didn't": "did not",
+        "isn't": "is not",
+        "wasn't": "was not",
+        "weren't": "were not",
+        "aren't": "are not",
+        "couldn't": "could not",
+        "wouldn't": "would not",
+        "shouldn't": "should not",
+        "haven't": "have not",
+        "hasn't": "has not",
+        "hadn't": "had not",
+    }
+
+    for contraction, replacement in contractions.items():
+        text = text.replace(contraction, replacement)
 
     # Remove numbers
-    text = re.sub(r'\d+', '', text)
+    text = re.sub(r"\d+", " ", text)
 
     # Remove punctuation
-    text = text.translate(str.maketrans('', '', string.punctuation))
+    text = text.translate(str.maketrans("", "", string.punctuation))
 
-    # Remove extra spaces
-    text = text.strip()
-
-    return text
-
-
-# -----------------------------
-# Step 2: Tokenization
-# -----------------------------
-def tokenize_text(text):
-
-    tokens = word_tokenize(text)
-
-    return tokens
-
-
-# -----------------------------
-# Step 3: Remove Stopwords
-# -----------------------------
-def remove_stopwords(tokens):
-
-    filtered_words = []
-
-    for word in tokens:
-
-        if word not in stop_words:
-
-            filtered_words.append(word)
-
-    return filtered_words
-
-
-# -----------------------------
-# Step 4: Lemmatization
-# -----------------------------
-def lemmatize_words(tokens):
-
-    words = []
-
-    for word in tokens:
-
-        words.append(lemmatizer.lemmatize(word))
-
-    return words
-
-
-# -----------------------------
-# Complete Preprocessing
-# -----------------------------
-def preprocess(text):
-
-    # Cleaning
-    text = clean_text(text)
+    # Remove extra whitespace
+    text = re.sub(r"\s+", " ", text).strip()
 
     # Tokenization
-    tokens = tokenize_text(text)
+    tokens = word_tokenize(text)
 
-    # Stopword Removal
-    tokens = remove_stopwords(tokens)
+    # Remove stopwords and lemmatize
+    cleaned_tokens = []
 
-    # Lemmatization
-    tokens = lemmatize_words(tokens)
+    for token in tokens:
+        if token not in STOP_WORDS and len(token) > 1:
+            token = LEMMATIZER.lemmatize(token)
+            cleaned_tokens.append(token)
 
-    # Convert list back to sentence
-    sentence = " ".join(tokens)
-
-    return sentence
+    return " ".join(cleaned_tokens)
 
 
-# -----------------------------
-# Test Program
-# -----------------------------
-if __name__ == "__main__":
-
-    review = input("Enter a movie review:\n")
-
-    result = preprocess(review)
-
-    print("\nProcessed Review:")
-    print(result)
+def preprocess_reviews(reviews):
+    """
+    Apply clean_text() to a collection of reviews.
+    """
+    return reviews.apply(clean_text)
