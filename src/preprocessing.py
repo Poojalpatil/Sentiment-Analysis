@@ -8,24 +8,20 @@ from nltk.tokenize import word_tokenize
 
 STOP_WORDS = set(stopwords.words("english"))
 
-
-# for sentiment analysis.
+# Preserve important negation words for sentiment analysis
 NEGATION_WORDS = {"not", "no", "nor", "never"}
-
-STOP_WORDS = STOP_WORDS - NEGATION_WORDS
+STOP_WORDS -= NEGATION_WORDS
 
 LEMMATIZER = WordNetLemmatizer()
 
 
 def clean_text(text: str) -> str:
-    """
-    Clean and normalize a movie review.
-    """
+    """Clean and normalize a movie review."""
 
     if not isinstance(text, str):
         return ""
 
-    # Convert to lowercase
+    # Lowercase
     text = text.lower()
 
     # Remove HTML tags
@@ -62,25 +58,22 @@ def clean_text(text: str) -> str:
     # Remove punctuation
     text = text.translate(str.maketrans("", "", string.punctuation))
 
-    # Remove extra whitespace
+    # Remove extra spaces
     text = re.sub(r"\s+", " ", text).strip()
 
     # Tokenization
     tokens = word_tokenize(text)
 
     # Remove stopwords and lemmatize
-    cleaned_tokens = []
-
-    for token in tokens:
-        if token not in STOP_WORDS and len(token) > 1:
-            token = LEMMATIZER.lemmatize(token)
-            cleaned_tokens.append(token)
+    cleaned_tokens = [
+        LEMMATIZER.lemmatize(token)
+        for token in tokens
+        if token not in STOP_WORDS and len(token) > 1
+    ]
 
     return " ".join(cleaned_tokens)
 
 
 def preprocess_reviews(reviews):
-    """
-    Apply clean_text() to a collection of reviews.
-    """
+    """Apply clean_text() to a collection of reviews."""
     return reviews.apply(clean_text)
