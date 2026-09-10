@@ -1,14 +1,22 @@
 import re
 import string
 
+import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
 
 
+# Download required NLTK resources if missing
+nltk.download("punkt", quiet=True)
+nltk.download("punkt_tab", quiet=True)
+nltk.download("stopwords", quiet=True)
+nltk.download("wordnet", quiet=True)
+nltk.download("omw-1.4", quiet=True)
+
+
 STOP_WORDS = set(stopwords.words("english"))
 
-# Preserve important negation words for sentiment analysis
 NEGATION_WORDS = {"not", "no", "nor", "never"}
 STOP_WORDS -= NEGATION_WORDS
 
@@ -16,21 +24,14 @@ LEMMATIZER = WordNetLemmatizer()
 
 
 def clean_text(text: str) -> str:
-    """Clean and normalize a movie review."""
-
     if not isinstance(text, str):
         return ""
 
-    # Lowercase
     text = text.lower()
 
-    # Remove HTML tags
     text = re.sub(r"<.*?>", " ", text)
-
-    # Remove URLs
     text = re.sub(r"https?://\S+|www\.\S+", " ", text)
 
-    # Handle common contractions
     contractions = {
         "can't": "can not",
         "won't": "will not",
@@ -52,19 +53,16 @@ def clean_text(text: str) -> str:
     for contraction, replacement in contractions.items():
         text = text.replace(contraction, replacement)
 
-    # Remove numbers
     text = re.sub(r"\d+", " ", text)
 
-    # Remove punctuation
-    text = text.translate(str.maketrans("", "", string.punctuation))
+    text = text.translate(
+        str.maketrans("", "", string.punctuation)
+    )
 
-    # Remove extra spaces
     text = re.sub(r"\s+", " ", text).strip()
 
-    # Tokenization
     tokens = word_tokenize(text)
 
-    # Remove stopwords and lemmatize
     cleaned_tokens = [
         LEMMATIZER.lemmatize(token)
         for token in tokens
@@ -75,5 +73,4 @@ def clean_text(text: str) -> str:
 
 
 def preprocess_reviews(reviews):
-    """Apply clean_text() to a collection of reviews."""
     return reviews.apply(clean_text)
